@@ -5,6 +5,7 @@ import {
 import {
   BlockExpressionNode, ElementDeclarationNode, InfixExpressionNode,
   ListExpressionNode, SyntaxNode, TransformColumnNode, TransformStatementNode, IdentiferStreamNode,
+  FunctionApplicationNode,
 } from '../../parser/nodes';
 import { CompileError, CompileErrorCode } from '../../errors';
 import { extractElementName, getTokenPosition } from '../utils';
@@ -512,6 +513,26 @@ export class TransformInterpreter implements ElementInterpreter {
   private expressionToString(expression?: SyntaxNode): string {
     if (!expression) return '';
 
+    // Handle FunctionApplicationNode (multi-token expressions like "A and B and C")
+    // These are created by expression() parser for lines with multiple tokens
+    if (expression instanceof FunctionApplicationNode) {
+      const parts: string[] = [];
+
+      // Add the callee (first expression)
+      if (expression.callee) {
+        parts.push(this.expressionToString(expression.callee));
+      }
+
+      // Add all arguments (remaining expressions)
+      if (expression.args && expression.args.length > 0) {
+        for (const arg of expression.args) {
+          parts.push(this.expressionToString(arg));
+        }
+      }
+
+      return parts.join(' ');
+    }
+
     // Handle InfixExpressionNode (binary operators: =, and, or, >, <, !=, etc.)
     if (expression instanceof InfixExpressionNode) {
       const left = this.expressionToString(expression.leftExpression);
@@ -527,7 +548,15 @@ export class TransformInterpreter implements ElementInterpreter {
       // Handle literal values (strings, numbers, booleans)
       if (primaryExpr.expression?.constructor.name === 'LiteralNode') {
         const literal = primaryExpr.expression;
-        return literal.literal?.value || '';
+        const value = literal.literal?.value || '';
+
+        // For string literals, preserve the quotes
+        // Check if it's a string literal by looking at the token kind
+        if (literal.literal?.kind === '<string>') {
+          return `'${value}'`;
+        }
+
+        return value;
       }
 
       // Handle variables (identifiers)

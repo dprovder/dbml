@@ -911,9 +911,10 @@ export default class Parser {
     }
 
     try {
-      // MVP: normalExpression() captures simple expressions
-      // Complex boolean logic with and/or is a Phase 4 feature
-      args.expression = this.normalExpression();
+      // Phase 4: Use expression() to capture full line including and/or operators
+      // expression() returns FunctionApplicationNode for multi-token expressions
+      const fullExpr = this.expression();
+      args.expression = fullExpr as NormalExpressionNode;
     } catch (e) {
       if (!(e instanceof PartialParsingError)) {
         throw e;
