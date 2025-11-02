@@ -47,9 +47,19 @@ describe('Transform SQL Export', () => {
   // Test 2: Multiple joins
   it('should generate correct SQL for transform with multiple joins', () => {
     const dbml = `
-      table Users { id int [pk] }
-      table Orders { order_id int [pk] user_id int }
-      table Payments { payment_id int [pk] order_id int }
+      table Users {
+        id int [pk]
+      }
+
+      table Orders {
+        order_id int [pk]
+        user_id int
+      }
+
+      table Payments {
+        payment_id int [pk]
+        order_id int
+      }
 
       transform MultiJoin[Users, Orders, Payments] {
         Users.id
@@ -97,8 +107,15 @@ describe('Transform SQL Export', () => {
   // Test 4: Column aliases
   it('should generate correct SQL for column aliases', () => {
     const dbml = `
-      table Users { id int name varchar }
-      table Orders { order_id int user_id int }
+      table Users {
+        id int
+        name varchar
+      }
+
+      table Orders {
+        order_id int
+        user_id int
+      }
 
       transform WithAliases[Users, Orders] {
         Users.id [as: user_id]
@@ -142,7 +159,10 @@ describe('Transform SQL Export', () => {
   // Test 6: LIMIT
   it('should generate correct SQL for LIMIT', () => {
     const dbml = `
-      table Orders { id int total decimal }
+      table Orders {
+        id int
+        total decimal
+      }
 
       transform TopOrders[Orders] {
         Orders.id
@@ -228,7 +248,10 @@ describe('Transform SQL Export', () => {
   // Test 10: Multiple transforms
   it('should export multiple transforms', () => {
     const dbml = `
-      table Users { id int name varchar }
+      table Users {
+        id int
+        name varchar
+      }
 
       transform View1[Users] {
         Users.id

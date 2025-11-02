@@ -288,11 +288,17 @@ export class TransformInterpreter implements ElementInterpreter {
       )];
     }
 
+    // Phase 4: expression() returns FunctionApplicationNode, extract the actual expression
+    let joinExpression = statement.expression;
+    if (statement.expression instanceof FunctionApplicationNode) {
+      joinExpression = (statement.expression as FunctionApplicationNode).callee!;
+    }
+
     // Extract join predicate
-    if (statement.expression instanceof InfixExpressionNode &&
-        statement.expression.leftExpression &&
-        statement.expression.rightExpression) {
-      const infix = statement.expression;
+    if (joinExpression instanceof InfixExpressionNode &&
+        joinExpression.leftExpression &&
+        joinExpression.rightExpression) {
+      const infix = joinExpression;
       const operator = infix.op?.value || '=';
 
       // Left side: Users.id
@@ -353,8 +359,14 @@ export class TransformInterpreter implements ElementInterpreter {
       )];
     }
 
+    // Phase 4: Extract from FunctionApplicationNode if needed
+    let expr = statement.expression;
+    if (statement.expression instanceof FunctionApplicationNode) {
+      expr = (statement.expression as FunctionApplicationNode).callee!;
+    }
+
     // Extract column names
-    const columns = destructureComplexVariable(statement.expression).unwrap_or([]);
+    const columns = destructureComplexVariable(expr).unwrap_or([]);
 
     if (!this.transform.groupBy) {
       this.transform.groupBy = [];
@@ -377,7 +389,13 @@ export class TransformInterpreter implements ElementInterpreter {
       )];
     }
 
-    const orderBy = this.parseOrderBy(statement.expression);
+    // Phase 4: Extract from FunctionApplicationNode if needed
+    let expr = statement.expression;
+    if (statement.expression instanceof FunctionApplicationNode) {
+      expr = (statement.expression as FunctionApplicationNode).callee!;
+    }
+
+    const orderBy = this.parseOrderBy(expr);
 
     if (!this.transform.orderBy) {
       this.transform.orderBy = [];
@@ -397,8 +415,14 @@ export class TransformInterpreter implements ElementInterpreter {
       )];
     }
 
+    // Phase 4: Extract from FunctionApplicationNode if needed
+    let expr = statement.expression;
+    if (statement.expression instanceof FunctionApplicationNode) {
+      expr = (statement.expression as FunctionApplicationNode).callee!;
+    }
+
     // Try to extract number
-    const limitStr = extractVariableFromExpression(statement.expression).unwrap_or('0');
+    const limitStr = extractVariableFromExpression(expr).unwrap_or('0');
     const limit = parseInt(limitStr, 10);
 
     if (isNaN(limit)) {
@@ -538,6 +562,12 @@ export class TransformInterpreter implements ElementInterpreter {
       const left = this.expressionToString(expression.leftExpression);
       const operator = expression.op?.value || '';
       const right = this.expressionToString(expression.rightExpression);
+
+      // Special case: dot operator (member access) should not have spaces
+      if (operator === '.') {
+        return `${left}.${right}`;
+      }
+
       return `${left} ${operator} ${right}`;
     }
 
