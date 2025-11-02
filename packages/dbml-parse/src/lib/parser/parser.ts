@@ -239,9 +239,17 @@ export default class Parser {
       throw new PartialParsingError(e.token, buildElement(), e.handlerContext);
     }
 
+    // Check if this is a transform to parse name differently
+    const isTransformType = args.type?.value.toLowerCase() === 'transform';
+
     if (!this.check(SyntaxTokenKind.COLON, SyntaxTokenKind.LBRACE, SyntaxTokenKind.LBRACKET)) {
       try {
-        args.name = this.normalExpression();
+        // For transforms, parse name as primary expression to avoid consuming '[' as array access
+        if (isTransformType) {
+          args.name = this.primaryExpression();
+        } else {
+          args.name = this.normalExpression();
+        }
       } catch (e) {
         if (!(e instanceof PartialParsingError)) {
           throw e;
@@ -275,8 +283,7 @@ export default class Parser {
     }
 
     // For transforms, parse source list [Source1, Source2]
-    const isTransform = args.type?.value.toLowerCase() === 'transform';
-    if (isTransform && this.check(SyntaxTokenKind.LBRACKET)) {
+    if (isTransformType && this.check(SyntaxTokenKind.LBRACKET)) {
       try {
         args.sourceList = this.listExpression();
       } catch (e) {
@@ -320,7 +327,7 @@ export default class Parser {
         }
       } else {
         // Parse transform body differently from regular block
-        args.body = isTransform ? this.transformBlockExpression() : this.blockExpression();
+        args.body = isTransformType ? this.transformBlockExpression() : this.blockExpression();
       }
     } catch (e) {
       if (!(e instanceof PartialParsingError)) {

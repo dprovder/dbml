@@ -8,6 +8,7 @@ import {
   hasWhiteSpace,
 } from './utils';
 import { shouldPrintSchemaName } from '../model_structure/utils';
+import TransformExporter from './TransformExporter';
 
 // PostgreSQL built-in data types
 // Generated from PostgreSQLParser.g4 and PostgreSQLLexer.g4
@@ -534,6 +535,12 @@ class PostgresExporter {
       return prevStatements;
     }, schemaEnumStatements);
 
+    // Export transforms as views
+    let transformStatements = '';
+    if (database.transforms && database.transforms.length > 0) {
+      transformStatements = '\n' + TransformExporter.exportTransforms(database.transforms, 'postgres');
+    }
+
     const res = _.concat(
       statements.schemas,
       statements.enums,
@@ -541,7 +548,7 @@ class PostgresExporter {
       statements.indexes,
       statements.comments,
       statements.refs,
-    ).join('\n');
+    ).join('\n') + transformStatements;
     return res;
   }
 }

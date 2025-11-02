@@ -24,6 +24,7 @@ class Database extends Element {
     aliases = [],
     records = [],
     tablePartials = [],
+    transforms = [],
   }) {
     super();
     this.dbState = new DbState();
@@ -39,6 +40,7 @@ class Database extends Element {
     this.aliases = aliases;
     this.records = [];
     this.tablePartials = [];
+    this.transforms = transforms || [];
 
     // The global array containing references with 1 endpoint being a field injected from a partial to a table
     // These refs are add to this array when resolving partials in tables (`Table.processPartials()`)

@@ -4,7 +4,7 @@ import {
 } from '../types';
 import {
   BlockExpressionNode, ElementDeclarationNode, InfixExpressionNode,
-  ListExpressionNode, SyntaxNode, TransformColumnNode, TransformStatementNode,
+  ListExpressionNode, SyntaxNode, TransformColumnNode, TransformStatementNode, IdentiferStreamNode,
 } from '../../parser/nodes';
 import { CompileError, CompileErrorCode } from '../../errors';
 import { extractElementName, getTokenPosition } from '../utils';
@@ -14,6 +14,7 @@ import {
 } from '../../analyzer/utils';
 import { aggregateSettingList } from '../../analyzer/validator/utils';
 import { SettingName } from '../../analyzer/types';
+import { extractStringFromIdentifierStream } from '../../parser/utils';
 
 export class TransformInterpreter implements ElementInterpreter {
   private declarationNode: ElementDeclarationNode;
@@ -81,16 +82,41 @@ export class TransformInterpreter implements ElementInterpreter {
       const sourceExpr = attr.name || attr.value;
       if (!sourceExpr) continue;
 
-      // Extract source name (could be "Users", "schema.Users", etc.)
-      const fragments = destructureComplexVariable(sourceExpr).unwrap_or([]);
+      // Extract source name - could be IdentifierStreamNode, simple variable, or complex variable
+      let fragments: string[];
 
-      if (fragments.length === 0) {
-        errors.push(new CompileError(
-          CompileErrorCode.INVALID_NAME,
-          'Invalid source specification',
-          sourceExpr
-        ));
-        continue;
+      if (sourceExpr instanceof IdentiferStreamNode) {
+        // Handle identifier stream (e.g., "users" or "schema users")
+        const streamStr = extractStringFromIdentifierStream(sourceExpr);
+        if (!streamStr.isOk()) {
+          errors.push(new CompileError(
+            CompileErrorCode.INVALID_NAME,
+            'Invalid source specification',
+            sourceExpr
+          ));
+          continue;
+        }
+        // Split by spaces or dots to get schema/table parts
+        const parts = streamStr.unwrap().split(/[.\s]+/);
+        fragments = parts;
+      } else {
+        // Try simple variable first
+        const simpleVar = extractVariableFromExpression(sourceExpr);
+        if (simpleVar.isOk()) {
+          fragments = [simpleVar.unwrap()];
+        } else {
+          // Try complex variable (schema.table)
+          fragments = destructureComplexVariable(sourceExpr).unwrap_or([]);
+        }
+
+        if (fragments.length === 0) {
+          errors.push(new CompileError(
+            CompileErrorCode.INVALID_NAME,
+            'Invalid source specification',
+            sourceExpr
+          ));
+          continue;
+        }
       }
 
       const source: TransformSource = {

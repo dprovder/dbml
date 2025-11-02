@@ -24,6 +24,7 @@ import ProjectValidator from './elementValidators/project';
 import RefValidator from './elementValidators/ref';
 import TableValidator from './elementValidators/table';
 import TableGroupValidator from './elementValidators/tableGroup';
+import TransformValidator from './elementValidators/transform';
 import { createSchemaSymbolIndex } from '../symbol/symbolIndex';
 import { SchemaSymbol } from '../symbol/symbols';
 import SymbolTable from '../symbol/symbolTable';
@@ -58,6 +59,8 @@ export function pickValidator (element: ElementDeclarationNode & { type: SyntaxT
       return TablePartialValidator;
     case ElementKind.Check:
       return ChecksValidator;
+    case ElementKind.Transform:
+      return TransformValidator;
     default:
       return CustomValidator;
   }
