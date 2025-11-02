@@ -1,0 +1,105 @@
+// DBML Transform Feature Demo
+// This demonstrates all the transform capabilities we implemented in Phase 4.1
+
+// Define our base tables
+table Users {
+  id int [pk]
+  name varchar
+  email varchar
+  active boolean
+  created_at timestamp
+}
+
+table Orders {
+  order_id int [pk]
+  user_id int
+  total_amount decimal
+  status varchar
+  order_date timestamp
+}
+
+table OrderItems {
+  item_id int [pk]
+  order_id int
+  product_name varchar
+  quantity int
+  price decimal
+}
+
+// Example 1: Basic transform with JOIN
+// Creates a view combining users and their orders
+transform UserOrders[Users, Orders] {
+  Users.id [as: user_id]
+  Users.name [as: user_name]
+  Orders.order_id
+  Orders.total_amount
+  Orders.order_date
+  join: Users.id = Orders.user_id
+}
+
+// Example 2: Transform with complex WHERE clause (AND/OR operators)
+// Shows only active users with orders over $100 placed after 2023
+transform HighValueActiveUsers[Users, Orders] {
+  Users.id
+  Users.name
+  Orders.total_amount
+  Orders.order_date
+  join: Users.id = Orders.user_id
+  where: Users.active = true and Orders.total_amount > 100 and Orders.order_date > '2023-01-01'
+}
+
+// Example 3: Aggregations with GROUP BY
+// Calculate total spending per user
+transform UserSpending[Users, Orders] {
+  Users.id [as: user_id]
+  Users.name
+  Orders.total_amount [agg: sum, as: total_spent]
+  Orders.order_id [agg: count, as: order_count]
+  join: Users.id = Orders.user_id
+  group_by: Users.id, Users.name
+  order_by: Users.name DESC
+}
+
+// Example 4: Window functions with PARTITION BY
+// Rank orders by amount within each user
+transform RankedOrders[Orders] {
+  Orders.order_id
+  Orders.user_id
+  Orders.total_amount
+  Orders.order_date [window: row_number, partition_by: Orders.user_id, order_by: Orders.total_amount DESC, as: rank_by_amount]
+}
+
+// Example 5: Windowed aggregation
+// Running total of order amounts per user
+transform RunningTotals[Orders] {
+  Orders.order_id
+  Orders.user_id
+  Orders.total_amount
+  Orders.total_amount [agg: sum, partition_by: Orders.user_id, order_by: Orders.order_date, as: running_total]
+}
+
+// Example 6: Complex multi-feature transform
+// Combines multiple JOINs, WHERE, GROUP BY, ORDER BY, and LIMIT
+transform TopUserStats[Users, Orders, OrderItems] {
+  Users.id [as: user_id]
+  Users.name
+  Orders.total_amount [agg: sum, as: total_revenue]
+  Orders.total_amount [agg: avg, as: avg_order_value]
+  OrderItems.quantity [agg: sum, as: total_items_purchased]
+  join: Users.id = Orders.user_id
+  join: Orders.order_id = OrderItems.order_id
+  where: Users.active = true and Orders.status = 'completed'
+  group_by: Users.id, Users.name
+  order_by: Users.id DESC
+  limit: 100
+}
+
+// Example 7: Simple aggregation without JOIN
+// Total sales by date
+transform DailySales[Orders] {
+  Orders.order_date [as: date]
+  Orders.total_amount [agg: sum, as: daily_total]
+  Orders.order_id [agg: count, as: order_count]
+  group_by: Orders.order_date
+  order_by: Orders.order_date DESC
+}
