@@ -541,12 +541,13 @@ export class TransformInterpreter implements ElementInterpreter {
       return `${left} ${operator} ${right}`;
     }
 
-    // Handle PrimaryExpressionNode
-    if (expression.constructor.name === 'PrimaryExpressionNode') {
-      const primaryExpr = expression as any;
+    // Handle PrimaryExpressionNode - use kind instead of constructor.name (minification-safe)
+    const exprAny = expression as any;
+    if (exprAny.kind === '<primary-expression>') {
+      const primaryExpr = exprAny;
 
       // Handle literal values (strings, numbers, booleans)
-      if (primaryExpr.expression?.constructor.name === 'LiteralNode') {
+      if (primaryExpr.expression?.kind === '<literal>') {
         const literal = primaryExpr.expression;
         const value = literal.literal?.value || '';
 
@@ -560,7 +561,7 @@ export class TransformInterpreter implements ElementInterpreter {
       }
 
       // Handle variables (identifiers)
-      if (primaryExpr.expression?.constructor.name === 'VariableNode') {
+      if (primaryExpr.expression?.kind === '<identifier>') {
         return primaryExpr.expression.variable?.value || '';
       }
     }
