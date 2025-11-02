@@ -15,6 +15,8 @@ export {
   ProgramNode,
   SyntaxNodeKind,
   type SyntaxNodeId,
+  TransformColumnNode,
+  TransformStatementNode,
 } from './lib/parser/nodes';
 
 export {
@@ -49,6 +51,13 @@ export {
   type Project,
   type TableGroup,
   type TablePartial,
+  type Transform,
+  type TransformSource,
+  type TransformColumn,
+  type TransformJoin,
+  type TransformFilter,
+  type TransformOrderBy,
+  type DerivedColumn,
 } from './lib/interpreter/types';
 
 export { serialize, Compiler, services };

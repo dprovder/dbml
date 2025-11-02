@@ -104,6 +104,10 @@ export enum SyntaxNodeKind {
   DUMMY = '<dummy>',
   ARRAY = '<array>',
   PARTIAL_INJECTION = '<partial-injection>',
+
+  // Transform-specific nodes
+  TRANSFORM_COLUMN = '<transform-column>',
+  TRANSFORM_STATEMENT = '<transform-statement>',
 }
 
 export class ProgramNode extends SyntaxNode {
@@ -130,10 +134,12 @@ export class ElementDeclarationNode extends SyntaxNode {
 
   alias?: NormalExpressionNode;
 
+  sourceList?: ListExpressionNode; // For transforms: [Source1, Source2]
+
   attributeList?: ListExpressionNode;
 
   bodyColon?: SyntaxToken;
-  
+
   parent?: ElementDeclarationNode | ProgramNode; // The enclosing element/program
 
   body?: FunctionApplicationNode | BlockExpressionNode;
@@ -144,6 +150,7 @@ export class ElementDeclarationNode extends SyntaxNode {
       name,
       as,
       alias,
+      sourceList,
       attributeList,
       bodyColon,
       body,
@@ -152,6 +159,7 @@ export class ElementDeclarationNode extends SyntaxNode {
       name?: NormalExpressionNode;
       as?: SyntaxToken;
       alias?: NormalExpressionNode;
+      sourceList?: ListExpressionNode;
       attributeList?: ListExpressionNode;
       bodyColon?: SyntaxToken;
       body?: BlockExpressionNode | FunctionApplicationNode;
@@ -163,6 +171,7 @@ export class ElementDeclarationNode extends SyntaxNode {
       name,
       as,
       alias,
+      sourceList,
       attributeList,
       bodyColon,
       body,
@@ -179,6 +188,7 @@ export class ElementDeclarationNode extends SyntaxNode {
     this.name = name;
     this.as = as;
     this.alias = alias;
+    this.sourceList = sourceList;
     this.attributeList = attributeList;
     this.bodyColon = bodyColon;
     this.body = body;
@@ -324,7 +334,7 @@ export class FunctionApplicationNode extends SyntaxNode {
 export class BlockExpressionNode extends SyntaxNode {
   blockOpenBrace?: SyntaxToken;
 
-  body: (PartialInjectionNode | ElementDeclarationNode | FunctionApplicationNode)[];
+  body: (PartialInjectionNode | ElementDeclarationNode | FunctionApplicationNode | TransformColumnNode | TransformStatementNode)[];
 
   blockCloseBrace?: SyntaxToken;
 
@@ -335,7 +345,7 @@ export class BlockExpressionNode extends SyntaxNode {
       blockCloseBrace,
     }: {
       blockOpenBrace?: SyntaxToken;
-      body?: (PartialInjectionNode | ElementDeclarationNode | FunctionApplicationNode)[];
+      body?: (PartialInjectionNode | ElementDeclarationNode | FunctionApplicationNode | TransformColumnNode | TransformStatementNode)[];
       blockCloseBrace?: SyntaxToken;
     },
     id: SyntaxNodeId,
@@ -517,6 +527,52 @@ export class ArrayNode extends SyntaxNode {
     super(id, SyntaxNodeKind.ARRAY, [expression, indexer]);
     this.array = expression;
     this.indexer = indexer;
+  }
+}
+
+// Transform-specific nodes
+
+export class TransformColumnNode extends SyntaxNode {
+  expression?: NormalExpressionNode;
+  attributeList?: ListExpressionNode;
+
+  constructor(
+    {
+      expression,
+      attributeList,
+    }: {
+      expression?: NormalExpressionNode;
+      attributeList?: ListExpressionNode;
+    },
+    id: SyntaxNodeId,
+  ) {
+    super(id, SyntaxNodeKind.TRANSFORM_COLUMN, [expression, attributeList]);
+    this.expression = expression;
+    this.attributeList = attributeList;
+  }
+}
+
+export class TransformStatementNode extends SyntaxNode {
+  keyword?: SyntaxToken;
+  colon?: SyntaxToken;
+  expression?: NormalExpressionNode;
+
+  constructor(
+    {
+      keyword,
+      colon,
+      expression,
+    }: {
+      keyword?: SyntaxToken;
+      colon?: SyntaxToken;
+      expression?: NormalExpressionNode;
+    },
+    id: SyntaxNodeId,
+  ) {
+    super(id, SyntaxNodeKind.TRANSFORM_STATEMENT, [keyword, colon, expression]);
+    this.keyword = keyword;
+    this.colon = colon;
+    this.expression = expression;
   }
 }
 

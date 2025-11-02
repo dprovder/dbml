@@ -27,6 +27,7 @@ export interface InterpreterDatabase {
   tablePartials: Map<ElementDeclarationNode, TablePartial>;
   aliases: Alias[];
   project: Map<ElementDeclarationNode, Project>;
+  transforms: Map<ElementDeclarationNode, Transform>;
 }
 
 export interface Database {
@@ -39,6 +40,7 @@ export interface Database {
   aliases: Alias[];
   project: Project;
   tablePartials: TablePartial[];
+  transforms: Transform[];
 }
 
 export interface Table {
@@ -222,3 +224,73 @@ export type Project =
     index: string & Omit<any, 'name' | 'tables' | 'refs' | 'enums' | 'tableGroups' | 'note' | 'tablePartials'>
     ]: string;
   };
+
+// Transform types
+export interface Transform {
+  name: string;
+  schemaName: string | null;
+  alias: string | null;
+  sources: TransformSource[];
+  columns: TransformColumn[];
+  joins: TransformJoin[];
+  filters: TransformFilter[];
+  groupBy?: string[];
+  orderBy?: TransformOrderBy[];
+  limit?: number;
+  nestedTransform?: {
+    transformName: string;
+    sources: TransformSource[];
+  };
+  derivedColumns?: DerivedColumn[];
+  token: TokenPosition;
+}
+
+export interface TransformSource {
+  name: string;
+  schemaName?: string;
+  alias?: string;
+}
+
+export interface TransformColumn {
+  sourceTable: string;
+  sourceColumn: string;
+  alias?: string;
+  aggregation?: {
+    function: string;
+    partitionBy?: string[];
+    orderBy?: TransformOrderBy[];
+  };
+  window?: {
+    function: string;
+    partitionBy?: string[];
+    orderBy?: TransformOrderBy[];
+    frame?: string;
+  };
+  expression?: string;
+}
+
+export interface TransformJoin {
+  leftTable: string;
+  leftColumn: string;
+  operator: string;
+  rightTable: string;
+  rightColumn: string;
+  token: TokenPosition;
+}
+
+export interface TransformFilter {
+  expression: string;
+  token: TokenPosition;
+}
+
+export interface TransformOrderBy {
+  table: string;
+  column: string;
+  direction: 'ASC' | 'DESC';
+}
+
+export interface DerivedColumn {
+  name: string;
+  expression: string;
+  token: TokenPosition;
+}

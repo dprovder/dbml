@@ -23,6 +23,7 @@ function convertEnvToDb (env: InterpreterDatabase): Database {
     aliases: env.aliases,
     project: Array.from(env.project.values())[0] || {},
     tablePartials: Array.from(env.tablePartials.values()),
+    transforms: Array.from(env.transforms.values()),
   };
 }
 
@@ -45,6 +46,7 @@ export default class Interpreter {
       aliases: [],
       project: new Map(),
       tablePartials: new Map(),
+      transforms: new Map(),
     };
   }
 

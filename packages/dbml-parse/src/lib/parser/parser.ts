@@ -34,6 +34,8 @@ import {
   TupleExpressionNode,
   VariableNode,
   PartialInjectionNode,
+  TransformColumnNode,
+  TransformStatementNode,
 } from './nodes';
 import NodeFactory from './factory';
 import { hasTrailingNewLines, hasTrailingSpaces, isAtStartOfLine } from '../lexer/utils';
@@ -219,6 +221,7 @@ export default class Parser {
       name?: NormalExpressionNode;
       as?: SyntaxToken;
       alias?: NormalExpressionNode;
+      sourceList?: ListExpressionNode;
       attributeList?: ListExpressionNode;
       bodyColon?: SyntaxToken;
       body?: FunctionApplicationNode | BlockExpressionNode;
@@ -271,6 +274,20 @@ export default class Parser {
       }
     }
 
+    // For transforms, parse source list [Source1, Source2]
+    const isTransform = args.type?.value.toLowerCase() === 'transform';
+    if (isTransform && this.check(SyntaxTokenKind.LBRACKET)) {
+      try {
+        args.sourceList = this.listExpression();
+      } catch (e) {
+        if (!(e instanceof PartialParsingError)) {
+          throw e;
+        }
+        args.sourceList = e.partialNode;
+        throw new PartialParsingError(e.token, buildElement(), e.handlerContext);
+      }
+    }
+
     try {
       args.attributeList = this.check(SyntaxTokenKind.LBRACKET) ? this.listExpression() : undefined;
     } catch (e) {
@@ -302,7 +319,8 @@ export default class Parser {
           args.body = expr;
         }
       } else {
-        args.body = this.blockExpression();
+        // Parse transform body differently from regular block
+        args.body = isTransform ? this.transformBlockExpression() : this.blockExpression();
       }
     } catch (e) {
       if (!(e instanceof PartialParsingError)) {
@@ -783,6 +801,151 @@ export default class Parser {
 
     return buildBlock();
   });
+
+  // Transform block parsing - handles columns and statements
+  private transformBlockExpression = this.contextStack.withContextDo(ParsingContext.BlockExpression, () => {
+    const args: {
+      blockOpenBrace?: SyntaxToken;
+      body: (TransformColumnNode | TransformStatementNode)[];
+      blockCloseBrace?: SyntaxToken;
+    } = { body: [] };
+    const buildBlock = () => this.nodeFactory.create(BlockExpressionNode, args);
+
+    try {
+      this.consume("Expect an opening brace '{'", SyntaxTokenKind.LBRACE);
+      args.blockOpenBrace = this.previous();
+    } catch (e) {
+      if (!(e instanceof PartialParsingError)) {
+        throw e;
+      }
+      args.blockOpenBrace = e.partialNode;
+      if (!this.canHandle(e)) {
+        throw new PartialParsingError(e.token, buildBlock(), e.handlerContext);
+      }
+      this.synchronizeBlock();
+    }
+
+    while (!this.isAtEnd() && !this.check(SyntaxTokenKind.RBRACE)) {
+      try {
+        // Check if this is a statement line (keyword: expression)
+        if (this.isTransformStatement()) {
+          args.body.push(this.transformStatement());
+        } else {
+          // Otherwise, it's a column expression
+          args.body.push(this.transformColumn());
+        }
+      } catch (e) {
+        if (!(e instanceof PartialParsingError)) {
+          throw e;
+        }
+        args.body.push(e.partialNode);
+        if (!this.canHandle(e)) {
+          throw new PartialParsingError(e.token, buildBlock(), e.handlerContext);
+        }
+        this.synchronizeBlock();
+      }
+    }
+
+    try {
+      this.consume("Expect a closing brace '}'", SyntaxTokenKind.RBRACE);
+      args.blockCloseBrace = this.previous();
+    } catch (e) {
+      if (!(e instanceof PartialParsingError)) {
+        throw e;
+      }
+      args.blockCloseBrace = e.partialNode;
+      if (!this.canHandle(e)) {
+        throw new PartialParsingError(e.token, buildBlock(), e.handlerContext);
+      }
+      this.synchronizeBlock();
+    }
+
+    return buildBlock();
+  });
+
+  private isTransformStatement(): boolean {
+    // Check if next tokens match "keyword:"
+    // Valid keywords: join, where, group_by, order_by, limit, using, add
+    if (this.peek().kind === SyntaxTokenKind.IDENTIFIER && this.peek(1).kind === SyntaxTokenKind.COLON) {
+      const keyword = this.peek().value.toLowerCase();
+      return ['join', 'where', 'group_by', 'order_by', 'limit', 'using', 'add'].includes(keyword);
+    }
+    return false;
+  }
+
+  private transformStatement(): TransformStatementNode {
+    const args: {
+      keyword?: SyntaxToken;
+      colon?: SyntaxToken;
+      expression?: NormalExpressionNode;
+    } = {};
+    const buildStatement = () => this.nodeFactory.create(TransformStatementNode, args);
+
+    try {
+      this.consume('Expect a keyword', SyntaxTokenKind.IDENTIFIER);
+      args.keyword = this.previous();
+    } catch (e) {
+      if (!(e instanceof PartialParsingError)) {
+        throw e;
+      }
+      args.keyword = e.partialNode;
+      throw new PartialParsingError(e.token, buildStatement(), e.handlerContext);
+    }
+
+    try {
+      this.consume('Expect a colon', SyntaxTokenKind.COLON);
+      args.colon = this.previous();
+    } catch (e) {
+      if (!(e instanceof PartialParsingError)) {
+        throw e;
+      }
+      args.colon = e.partialNode;
+      throw new PartialParsingError(e.token, buildStatement(), e.handlerContext);
+    }
+
+    try {
+      args.expression = this.normalExpression();
+    } catch (e) {
+      if (!(e instanceof PartialParsingError)) {
+        throw e;
+      }
+      args.expression = e.partialNode;
+      throw new PartialParsingError(e.token, buildStatement(), e.handlerContext);
+    }
+
+    return buildStatement();
+  }
+
+  private transformColumn(): TransformColumnNode {
+    const args: {
+      expression?: NormalExpressionNode;
+      attributeList?: ListExpressionNode;
+    } = {};
+    const buildColumn = () => this.nodeFactory.create(TransformColumnNode, args);
+
+    try {
+      args.expression = this.normalExpression();
+    } catch (e) {
+      if (!(e instanceof PartialParsingError)) {
+        throw e;
+      }
+      args.expression = e.partialNode;
+      throw new PartialParsingError(e.token, buildColumn(), e.handlerContext);
+    }
+
+    // Parse optional attribute list [as: alias, agg: sum, etc.]
+    try {
+      args.attributeList = this.check(SyntaxTokenKind.LBRACKET) ? this.listExpression() : undefined;
+    } catch (e) {
+      if (!(e instanceof PartialParsingError)) {
+        throw e;
+      }
+      args.attributeList = e.partialNode;
+      throw new PartialParsingError(e.token, buildColumn(), e.handlerContext);
+    }
+
+    return buildColumn();
+  }
 
   private canBeField(): boolean {
     return (

@@ -8,6 +8,7 @@ export enum ElementKind {
   TableGroup = 'tablegroup',
   TablePartial = 'tablepartial',
   Check = 'checks',
+  Transform = 'transform',
 }
 
 export enum SettingName {
@@ -29,4 +30,13 @@ export enum SettingName {
 
   Update = 'update',
   Delete = 'delete',
+
+  // Transform-specific settings
+  As = 'as',
+  Agg = 'agg',
+  Window = 'window',
+  PartitionBy = 'partition_by',
+  OrderBy = 'order_by',
+  Frame = 'frame',
+  Expr = 'expr',
 }
