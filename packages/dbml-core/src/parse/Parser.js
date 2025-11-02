@@ -79,6 +79,11 @@ class Parser {
     return parse(str, 'snowflake');
   }
 
+  static parseDuckDBToJSON (str) {
+    // DuckDB is PostgreSQL-compatible, so we use the PostgreSQL parser
+    return parse(str, 'postgres');
+  }
+
   static parse (str, format) {
     return new Parser().parse(str, format);
   }
@@ -125,6 +130,10 @@ class Parser {
 
         case 'mssql':
           rawDatabase = Parser.parseMSSQLToJSONv2(str);
+          break;
+
+        case 'duckdb':
+          rawDatabase = Parser.parseDuckDBToJSON(str);
           break;
 
         case 'json':

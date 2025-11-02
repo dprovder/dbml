@@ -4,6 +4,7 @@ import PostgresExporter from './PostgresExporter';
 import JsonExporter from './JsonExporter';
 import SqlServerExporter from './SqlServerExporter';
 import OracleExporter from './OracleExporter';
+import DuckDBExporter from './DuckDBExporter';
 
 class ModelExporter {
   static export (model = {}, format = '', isNormalized = true) {
@@ -32,6 +33,10 @@ class ModelExporter {
 
       case 'oracle':
         res = OracleExporter.export(normalizedModel);
+        break;
+
+      case 'duckdb':
+        res = DuckDBExporter.export(normalizedModel);
         break;
 
       default:

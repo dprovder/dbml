@@ -31,5 +31,9 @@ describe('@dbml/core - exporter', () => {
   test.each(scanTestNames(__dirname, 'oracle_exporter/input'))('oracle_exporter/%s', (name) => {
     runTest(name, 'oracle_exporter', 'oracle');
   });
+
+  test.each(scanTestNames(__dirname, 'duckdb_exporter/input'))('duckdb_exporter/%s', (name) => {
+    runTest(name, 'duckdb_exporter', 'duckdb');
+  });
   /* eslint-enable */
 });
