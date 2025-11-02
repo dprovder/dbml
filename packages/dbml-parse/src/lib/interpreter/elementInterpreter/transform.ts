@@ -201,7 +201,10 @@ export class TransformInterpreter implements ElementInterpreter {
         // Check for partition_by with aggregation (windowed aggregation)
         const partitionNode = settingMap[SettingName.PartitionBy]?.at(0);
         if (partitionNode && partitionNode.value) {
-          const partitionColumns = destructureComplexVariable(partitionNode.value).unwrap_or([]);
+          // Phase 4: Use expressionToString to preserve qualified names (Table.column)
+          const partitionStr = this.expressionToString(partitionNode.value);
+          // Split on commas for multiple columns, but preserve dots in qualified names
+          const partitionColumns = partitionStr.split(',').map(c => c.trim()).filter(c => c);
           column.aggregation.partitionBy = partitionColumns;
         }
 
@@ -222,7 +225,10 @@ export class TransformInterpreter implements ElementInterpreter {
         // Parse partition_by for window
         const partitionNode = settingMap[SettingName.PartitionBy]?.at(0);
         if (partitionNode && partitionNode.value) {
-          const partitionColumns = destructureComplexVariable(partitionNode.value).unwrap_or([]);
+          // Phase 4: Use expressionToString to preserve qualified names (Table.column)
+          const partitionStr = this.expressionToString(partitionNode.value);
+          // Split on commas for multiple columns, but preserve dots in qualified names
+          const partitionColumns = partitionStr.split(',').map(c => c.trim()).filter(c => c);
           column.window.partitionBy = partitionColumns;
         }
 
@@ -359,22 +365,32 @@ export class TransformInterpreter implements ElementInterpreter {
       )];
     }
 
-    // Phase 4: Extract from FunctionApplicationNode if needed
-    let expr = statement.expression;
-    if (statement.expression instanceof FunctionApplicationNode) {
-      expr = (statement.expression as FunctionApplicationNode).callee!;
-    }
-
-    // Extract column names
-    const columns = destructureComplexVariable(expr).unwrap_or([]);
-
     if (!this.transform.groupBy) {
       this.transform.groupBy = [];
     }
 
-    // For group_by, we expect fully qualified names like Orders.user_id
-    // Store them as strings
-    this.transform.groupBy.push(...columns);
+    // Phase 4: Handle FunctionApplicationNode for multi-column group by
+    if (statement.expression instanceof FunctionApplicationNode) {
+      const funcApp = statement.expression;
+
+      // First column (callee)
+      if (funcApp.callee) {
+        const col = this.expressionToString(funcApp.callee);
+        if (col) this.transform.groupBy.push(col);
+      }
+
+      // Additional columns (args)
+      if (funcApp.args && funcApp.args.length > 0) {
+        for (const arg of funcApp.args) {
+          const col = this.expressionToString(arg);
+          if (col) this.transform.groupBy.push(col);
+        }
+      }
+    } else {
+      // Single column
+      const col = this.expressionToString(statement.expression);
+      if (col) this.transform.groupBy.push(col);
+    }
 
     return [];
   }
@@ -389,13 +405,8 @@ export class TransformInterpreter implements ElementInterpreter {
       )];
     }
 
-    // Phase 4: Extract from FunctionApplicationNode if needed
-    let expr = statement.expression;
-    if (statement.expression instanceof FunctionApplicationNode) {
-      expr = (statement.expression as FunctionApplicationNode).callee!;
-    }
-
-    const orderBy = this.parseOrderBy(expr);
+    // Phase 4: Pass the entire expression to parseOrderBy (including DESC in FunctionApplicationNode.args)
+    const orderBy = this.parseOrderBy(statement.expression);
 
     if (!this.transform.orderBy) {
       this.transform.orderBy = [];
@@ -415,20 +426,14 @@ export class TransformInterpreter implements ElementInterpreter {
       )];
     }
 
-    // Phase 4: Extract from FunctionApplicationNode if needed
-    let expr = statement.expression;
-    if (statement.expression instanceof FunctionApplicationNode) {
-      expr = (statement.expression as FunctionApplicationNode).callee!;
-    }
-
-    // Try to extract number
-    const limitStr = extractVariableFromExpression(expr).unwrap_or('0');
+    // Use expressionToString to handle all expression types
+    const limitStr = this.expressionToString(statement.expression).trim();
     const limit = parseInt(limitStr, 10);
 
-    if (isNaN(limit)) {
+    if (isNaN(limit) || limit <= 0) {
       return [new CompileError(
         CompileErrorCode.INVALID_NAME,
-        'Limit must be a number',
+        `Limit must be a positive number, got: ${limitStr}`,
         statement
       )];
     }
@@ -502,30 +507,32 @@ export class TransformInterpreter implements ElementInterpreter {
 
   // Helper: Parse order by expression
   private parseOrderBy(expression: SyntaxNode): TransformOrderBy[] {
-    // Could be: Orders.total_amount DESC
-    // Or: Orders.date ASC, Orders.id DESC
-    // For now, parse simple case
-    const fragments = destructureComplexVariable(expression).unwrap_or([]);
+    // Parse single ORDER BY expression: "Table.column" or "Table.column DESC"
+    // Convert entire expression to string first, then parse
+    const exprStr = this.expressionToString(expression);
+    const parts = exprStr.trim().split(/\s+/);
 
-    const result: TransformOrderBy[] = [];
-
-    // Look for direction (ASC/DESC) at the end
-    const lastFragment = fragments[fragments.length - 1];
+    // Check for direction at the end (DESC/ASC)
     let direction: 'ASC' | 'DESC' = 'ASC';
+    let columnExpr = exprStr;
 
-    if (lastFragment?.toLowerCase() === 'desc') {
-      direction = 'DESC';
-      fragments.pop();
-    } else if (lastFragment?.toLowerCase() === 'asc') {
-      direction = 'ASC';
-      fragments.pop();
+    if (parts.length >= 2) {
+      const lastPart = parts[parts.length - 1].toUpperCase();
+      if (lastPart === 'DESC' || lastPart === 'ASC') {
+        direction = lastPart as 'ASC' | 'DESC';
+        // Remove direction from column expression
+        columnExpr = parts.slice(0, -1).join(' ');
+      }
     }
 
-    // Now fragments should be [Table, column]
-    if (fragments.length === 2) {
+    // Parse the column expression (Table.column)
+    const columnParts = columnExpr.split('.');
+    const result: TransformOrderBy[] = [];
+
+    if (columnParts.length === 2) {
       result.push({
-        table: fragments[0],
-        column: fragments[1],
+        table: columnParts[0].trim(),
+        column: columnParts[1].trim(),
         direction,
       });
     }

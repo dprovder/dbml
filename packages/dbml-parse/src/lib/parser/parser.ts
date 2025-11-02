@@ -911,10 +911,35 @@ export default class Parser {
     }
 
     try {
-      // Phase 4: Use expression() to capture full line including and/or operators
-      // expression() returns FunctionApplicationNode for multi-token expressions
-      const fullExpr = this.expression();
-      args.expression = fullExpr as NormalExpressionNode;
+      // Phase 4: Different parsing strategies based on statement type
+      const keyword = args.keyword?.value.toLowerCase();
+
+      if (keyword === 'group_by' || keyword === 'order_by') {
+        // For group_by and order_by, handle comma-separated expressions
+        // Parse first expression
+        const firstExpr = this.expression();
+        const expressions: NormalExpressionNode[] = [firstExpr];
+
+        // Parse additional expressions separated by commas
+        while (this.match(SyntaxTokenKind.COMMA)) {
+          expressions.push(this.expression());
+        }
+
+        // If we have multiple expressions, wrap them in a FunctionApplicationNode
+        // where the first is the callee and the rest are args
+        if (expressions.length > 1) {
+          args.expression = this.nodeFactory.create(FunctionApplicationNode, {
+            callee: expressions[0],
+            args: expressions.slice(1),
+          }) as NormalExpressionNode;
+        } else {
+          args.expression = firstExpr as NormalExpressionNode;
+        }
+      } else {
+        // For where, join, limit, using, add: use expression() to capture operators
+        const fullExpr = this.expression();
+        args.expression = fullExpr as NormalExpressionNode;
+      }
     } catch (e) {
       if (!(e instanceof PartialParsingError)) {
         throw e;
@@ -1259,6 +1284,29 @@ export default class Parser {
         this.peek(1).kind === SyntaxTokenKind.IDENTIFIER ?
           this.attributeName() :
           this.normalExpression();
+
+      // Special handling for ORDER BY direction (DESC/ASC)
+      // Check if next token is DESC or ASC, and if so, include it in the value
+      if (this.peek().kind === SyntaxTokenKind.IDENTIFIER) {
+        const nextValue = this.peek().value.toUpperCase();
+        if (nextValue === 'DESC' || nextValue === 'ASC') {
+          // Consume the direction keyword
+          this.advance();
+          const directionToken = this.previous();
+
+          // Wrap in FunctionApplicationNode: callee is the expression, args is [direction]
+          const directionNode = this.nodeFactory.create(PrimaryExpressionNode, {
+            expression: this.nodeFactory.create(VariableNode, {
+              variable: directionToken,
+            }),
+          });
+
+          value = this.nodeFactory.create(FunctionApplicationNode, {
+            callee: value,
+            args: [directionNode],
+          }) as NormalExpressionNode;
+        }
+      }
     } catch (e) {
       if (!(e instanceof PartialParsingError) || !this.canHandle(e)) {
         throw e;
