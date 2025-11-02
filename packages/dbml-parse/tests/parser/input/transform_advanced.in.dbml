@@ -1,0 +1,44 @@
+// Advanced transform test with window functions and expressions
+
+table Users {
+  id int [pk]
+  name varchar
+  active boolean
+}
+
+table Orders {
+  order_id int [pk]
+  user_id int [ref: > Users.id]
+  total_amount decimal
+  date timestamp
+}
+
+// Example 6: Expressions
+transform DiscountedOrders[Orders] {
+  Orders.order_id
+  Orders.user_id
+  (Orders.total_amount * 0.9) [as: discounted_amount]
+  where: Orders.total_amount > 100
+}
+
+// Example 7: Window functions
+transform UserOrderRanking[Users, Orders] {
+  Orders.order_id
+  Orders.total_amount [agg: sum, partition_by: Orders.user_id, as: total_per_user]
+  Orders.total_amount [window: row_number, partition_by: Orders.user_id, order_by: Orders.total_amount DESC, as: rank]
+  join: Users.id = Orders.user_id
+}
+
+// Example 8: Window with frame
+transform RunningTotalOrders[Orders] {
+  Orders.order_id
+  Orders.user_id
+  Orders.total_amount
+  Orders.total_amount [window: sum, partition_by: Orders.user_id, order_by: Orders.date, frame: range between unbounded preceding and current row, as: running_total]
+}
+
+// Example 9: Nested transform (using)
+transform FinalOrders[Users, Orders] {
+  using: SelectedUserOrders[Users, Orders]
+  add: final_discounted_amount = total_amount * 0.85
+}

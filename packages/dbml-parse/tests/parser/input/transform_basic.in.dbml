@@ -1,0 +1,70 @@
+// Basic transform test with tables and transforms
+
+table Users {
+  id int [pk]
+  name varchar
+  email varchar
+  active boolean
+}
+
+table Orders {
+  order_id int [pk]
+  user_id int [ref: > Users.id]
+  total_amount decimal
+  date timestamp
+}
+
+table Payments {
+  payment_id int [pk]
+  order_id int [ref: > Orders.order_id]
+  amount decimal
+  status varchar
+  paid_at timestamp
+}
+
+// Example 1: Basic select with join and where
+transform SelectedUserOrders[Users, Orders] {
+  Users.id
+  Users.name
+  Orders.order_id
+  Orders.total_amount
+  join: Users.id = Orders.user_id
+  where: Users.active = true and Orders.date > '2022-01-01'
+}
+
+// Example 2: Multiple joins
+transform SelectedUserOrdersWithPayments[Users, Orders, Payments] {
+  Users.id
+  Users.name
+  Orders.order_id
+  Orders.total_amount
+  Payments.payment_id
+  Payments.amount
+  join: Users.id = Orders.user_id
+  join: Orders.order_id = Payments.order_id
+  where: Users.active = true and Orders.date > '2022-01-01' and Payments.status = 'completed'
+}
+
+// Example 3: Aggregation
+transform TotalOrderAmount[Orders] {
+  Orders.user_id
+  Orders.total_amount [agg: sum, as: total_per_user]
+  group_by: Orders.user_id
+}
+
+// Example 4: Column aliases
+transform SelectedUserOrdersWithAlias[Users, Orders] {
+  Users.id [as: user_id]
+  Users.name [as: user_name]
+  Orders.order_id [as: order_id]
+  Orders.total_amount [as: order_amount]
+  join: Users.id = Orders.user_id
+}
+
+// Example 5: Order by
+transform SortedOrders[Orders] {
+  Orders.order_id
+  Orders.user_id
+  Orders.total_amount
+  order_by: Orders.total_amount DESC
+}

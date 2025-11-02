@@ -8,6 +8,7 @@ import { TableGroupInterpreter } from './elementInterpreter/tableGroup';
 import { EnumInterpreter } from './elementInterpreter/enum';
 import { ProjectInterpreter } from './elementInterpreter/project';
 import { TablePartialInterpreter } from './elementInterpreter/tablePartial';
+import { TransformInterpreter } from './elementInterpreter/transform';
 import Report from '../report';
 import { getElementKind } from '../analyzer/utils';
 import { ElementKind } from '../analyzer/types';
@@ -67,6 +68,8 @@ export default class Interpreter {
           return (new EnumInterpreter(element, this.env)).interpret();
         case ElementKind.Project:
           return (new ProjectInterpreter(element, this.env)).interpret();
+        case ElementKind.Transform:
+          return (new TransformInterpreter(element, this.env)).interpret();
         default:
           return [];
       }
