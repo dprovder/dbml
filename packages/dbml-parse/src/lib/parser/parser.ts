@@ -911,6 +911,8 @@ export default class Parser {
     }
 
     try {
+      // MVP: normalExpression() captures simple expressions
+      // Complex boolean logic with and/or is a Phase 4 feature
       args.expression = this.normalExpression();
     } catch (e) {
       if (!(e instanceof PartialParsingError)) {

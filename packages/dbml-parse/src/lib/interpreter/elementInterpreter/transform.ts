@@ -509,10 +509,54 @@ export class TransformInterpreter implements ElementInterpreter {
   }
 
   // Helper: Convert expression node to string representation
-  private expressionToString(expression: SyntaxNode): string {
-    // For MVP, we'll create a simple string representation
-    // In a full implementation, we'd recursively traverse the AST
+  private expressionToString(expression?: SyntaxNode): string {
+    if (!expression) return '';
+
+    // Handle InfixExpressionNode (binary operators: =, and, or, >, <, !=, etc.)
+    if (expression instanceof InfixExpressionNode) {
+      const left = this.expressionToString(expression.leftExpression);
+      const operator = expression.op?.value || '';
+      const right = this.expressionToString(expression.rightExpression);
+      return `${left} ${operator} ${right}`;
+    }
+
+    // Handle PrimaryExpressionNode
+    if (expression.constructor.name === 'PrimaryExpressionNode') {
+      const primaryExpr = expression as any;
+
+      // Handle literal values (strings, numbers, booleans)
+      if (primaryExpr.expression?.constructor.name === 'LiteralNode') {
+        const literal = primaryExpr.expression;
+        return literal.literal?.value || '';
+      }
+
+      // Handle variables (identifiers)
+      if (primaryExpr.expression?.constructor.name === 'VariableNode') {
+        return primaryExpr.expression.variable?.value || '';
+      }
+    }
+
+    // Handle AccessExpression (table.column)
+    if (expression.constructor.name === 'AccessExpression') {
+      const fragments = destructureComplexVariable(expression).unwrap_or([]);
+      return fragments.join('.');
+    }
+
+    // Handle PrefixExpressionNode (unary operators like NOT, -)
+    if (expression.constructor.name === 'PrefixExpressionNode') {
+      const prefixExpr = expression as any;
+      const operator = prefixExpr.op?.value || '';
+      const operand = this.expressionToString(prefixExpr.expression);
+      return `${operator}${operand}`;
+    }
+
+    // Fallback: try to extract as complex variable
     const fragments = destructureComplexVariable(expression).unwrap_or([]);
-    return fragments.join('.');
+    if (fragments.length > 0) {
+      return fragments.join('.');
+    }
+
+    // Last resort: return empty string
+    return '';
   }
 }
