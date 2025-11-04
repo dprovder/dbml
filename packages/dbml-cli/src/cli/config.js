@@ -20,4 +20,7 @@ export default {
   snowflake: {
     name: 'Snowflake',
   },
+  duckdb: {
+    name: 'DuckDB',
+  },
 };

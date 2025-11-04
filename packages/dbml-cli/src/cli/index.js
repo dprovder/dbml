@@ -18,6 +18,7 @@ function dbml2sql (args) {
     .option('--postgres')
     .option('--mssql')
     .option('--oracle')
+    .option('--duckdb')
     .option('-o, --out-file <pathspec>', 'compile all input files into a single files');
   // .option('-d, --out-dir <pathspec>', 'compile an input directory of dbml files into an output directory');
 
@@ -39,6 +40,7 @@ function sql2dbml (args) {
     .option('--mssql')
     .option('--mssql-legacy')
     .option('--snowflake')
+    .option('--duckdb')
     .option('-o, --out-file <pathspec>', 'compile all input files into a single files');
   // .option('-d, --out-dir <pathspec>', 'compile an input directory of sql files into an output directory');
 

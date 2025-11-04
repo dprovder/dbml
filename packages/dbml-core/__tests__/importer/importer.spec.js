@@ -36,5 +36,9 @@ describe('@dbml/core - importer', () => {
   test.each(scanTestNames(__dirname, 'snowflake_importer/input'))('snowflake_importer/%s', (name) => {
     runTest(name, 'snowflake_importer', 'snowflake');
   });
+
+  test.each(scanTestNames(__dirname, 'duckdb_importer/input'))('duckdb_importer/%s', (name) => {
+    runTest(name, 'duckdb_importer', 'duckdb');
+  });
   /* eslint-enable */
 });
