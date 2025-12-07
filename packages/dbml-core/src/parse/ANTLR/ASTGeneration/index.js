@@ -13,6 +13,10 @@ import SnowflakeLexer from '../parsers/snowflake/SnowflakeLexer';
 import SnowflakeParser from '../parsers/snowflake/SnowflakeParser';
 import SnowflakeASTGen from './snowflake/SnowflakeASTGen';
 
+import DuckDBLexer from '../parsers/duckdb/DuckDBLexer';
+import DuckDBParser from '../parsers/duckdb/DuckDBParser';
+import DuckDBASTGen from './duckdb/DuckDBASTGen';
+
 import ParserErrorListener from './ParserErrorListener';
 
 import TSqlLexer from '../parsers/mssql/TSqlLexer';
@@ -82,6 +86,21 @@ function parse (input, format) {
       const parseTree = parser.snowflake_file();
 
       database = parseTree.accept(new SnowflakeASTGen());
+
+      if (errorListener.errors.length) throw errorListener.errors;
+      break;
+    }
+    case 'duckdb': {
+      const lexer = new DuckDBLexer(chars);
+      const tokens = new antlr4.CommonTokenStream(lexer);
+      const parser = new DuckDBParser(tokens);
+      parser.buildParseTrees = true;
+      parser.removeErrorListeners();
+      parser.addErrorListener(errorListener);
+
+      const parseTree = parser.root();
+
+      database = parseTree.accept(new DuckDBASTGen());
 
       if (errorListener.errors.length) throw errorListener.errors;
       break;

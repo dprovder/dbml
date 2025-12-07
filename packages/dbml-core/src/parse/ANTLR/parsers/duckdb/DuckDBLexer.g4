@@ -692,11 +692,6 @@ AT
    : 'AT'
    ;
 
-// DuckDB-specific: ATTACH DATABASE syntax
-ATTACH
-   : 'ATTACH'
-   ;
-
 ATTRIBUTE
    : 'ATTRIBUTE'
    ;

@@ -80,8 +80,8 @@ class Parser {
   }
 
   static parseDuckDBToJSON (str) {
-    // DuckDB is PostgreSQL-compatible, so we use the PostgreSQL parser
-    return parse(str, 'postgres');
+    // Use dedicated DuckDB parser with DuckDB-specific type support
+    return parse(str, 'duckdb');
   }
 
   static parse (str, format) {
